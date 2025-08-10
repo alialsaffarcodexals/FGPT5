@@ -22,7 +22,7 @@ type App struct {
 }
 
 // Utilities
-func (a *App) currentUser(r *http.Request) (id int64, username string, ok bool) {
+func (a *App) CurrentUser(r *http.Request) (id int64, username string, ok bool) {
 	c, err := r.Cookie(a.CookieName)
 	if err != nil {
 		return 0, "", false
@@ -46,7 +46,7 @@ func (a *App) currentUser(r *http.Request) (id int64, username string, ok bool) 
 
 func (a *App) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, _, ok := a.currentUser(r); !ok {
+		if _, _, ok := a.CurrentUser(r); !ok {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
@@ -85,7 +85,7 @@ func (a *App) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Query().Get("mine") == "1" {
-		if uid, _, ok := a.currentUser(r); ok {
+		if uid, _, ok := a.CurrentUser(r); ok {
 			q += ` AND p.user_id = ?`
 			args = append(args, uid)
 		} else {
@@ -95,7 +95,7 @@ func (a *App) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Query().Get("liked") == "1" {
-		if uid, _, ok := a.currentUser(r); ok {
+		if uid, _, ok := a.CurrentUser(r); ok {
 			q += ` AND p.id IN (SELECT target_id FROM likes WHERE target_type='post' AND user_id=? AND value=1)`
 			args = append(args, uid)
 		} else {
@@ -132,9 +132,9 @@ func (a *App) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch categories for sidebar/filter
-	cats, _ := a.allCategories()
+	cats, _ := a.AllCategories()
 
-	uid, uname, logged := a.currentUser(r)
+	uid, uname, logged := a.CurrentUser(r)
 	a.render(w, "index.html", map[string]any{
 		"View":       "index",
 		"Posts":      posts,
@@ -150,7 +150,7 @@ func (a *App) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *App) allCategories() ([]string, error) {
+func (a *App) AllCategories() ([]string, error) {
 	rows, err := a.DB.Query(`SELECT name FROM categories ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -249,10 +249,10 @@ func (a *App) HandleLogout(w http.ResponseWriter, r *http.Request) {
 func (a *App) HandleNewPost(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		cats, _ := a.allCategories()
+		cats, _ := a.AllCategories()
 		a.render(w, "post_new.html", map[string]any{"View": "post_new", "Categories": cats})
 	case http.MethodPost:
-		uid, _, ok := a.currentUser(r)
+		uid, _, ok := a.CurrentUser(r)
 		if !ok {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
@@ -355,7 +355,7 @@ func (a *App) HandleShowPost(w http.ResponseWriter, r *http.Request) {
 			comments = append(comments, cmt)
 		}
 	}
-	uid, uname, logged := a.currentUser(r)
+	uid, uname, logged := a.CurrentUser(r)
 	a.render(w, "post_show.html", map[string]any{
 		"View":     "post_show",
 		"Post":     p,
@@ -367,7 +367,7 @@ func (a *App) HandleShowPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleNewComment(w http.ResponseWriter, r *http.Request) {
-	uid, _, ok := a.currentUser(r)
+	uid, _, ok := a.CurrentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -390,7 +390,7 @@ func (a *App) HandleNewComment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) HandleLike(w http.ResponseWriter, r *http.Request) {
-	uid, _, ok := a.currentUser(r)
+	uid, _, ok := a.CurrentUser(r)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return

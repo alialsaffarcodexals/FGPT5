@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"forum-mvp/internal/app"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -57,7 +58,11 @@ func main() {
 	http.HandleFunc("/like", a.RequireAuth(a.HandleLike))
 
 	log.Printf("listening on %s", *addr)
-	log.Fatal(http.ListenAndServe(*addr, logRequest(http.DefaultServeMux)))
+	// Wrap the mux to handle 404/500
+	wrappedMux := withCustomErrors(http.DefaultServeMux, a)
+
+	log.Printf("listening on %s", *addr)
+	log.Fatal(http.ListenAndServe(*addr, logRequest(wrappedMux)))
 }
 
 func logRequest(next http.Handler) http.Handler {
@@ -87,3 +92,53 @@ func loadTemplates(dir string) (map[string]*template.Template, error) {
 	}
 	return m, nil
 }
+
+func withCustomErrors(next *http.ServeMux, app *app.App) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        defer func() {
+            if err := recover(); err != nil {
+                w.WriteHeader(http.StatusInternalServerError)
+                if tpl, ok := app.Templates["500.html"]; ok {
+                    tpl.ExecuteTemplate(w, "500.html", appTemplateData(r, app))
+                } else {
+                    http.Error(w, "Internal Server Error", 500)
+                }
+            }
+        }()
+
+        rw := &responseWriter{ResponseWriter: w, statusCode: 200}
+        next.ServeHTTP(rw, r)
+
+        if rw.statusCode == http.StatusNotFound {
+            if tpl, ok := app.Templates["404.html"]; ok {
+                tpl.ExecuteTemplate(w, "404.html", appTemplateData(r, app))
+            } else {
+                http.NotFound(w, r)
+            }
+        }
+    })
+}
+
+// Capture status codes
+type responseWriter struct {
+    http.ResponseWriter
+    statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+    rw.statusCode = code
+    rw.ResponseWriter.WriteHeader(code)
+}
+
+// appTemplateData builds the data map like your other render calls
+func appTemplateData(r *http.Request, app *app.App) map[string]any {
+    uid, uname, logged := app.CurrentUser(r)
+    cats, _ := app.AllCategories()
+    return map[string]any{
+        "LoggedIn":   logged,
+        "UserID":     uid,
+        "Username":   uname,
+        "Categories": cats,
+    }
+}
+
