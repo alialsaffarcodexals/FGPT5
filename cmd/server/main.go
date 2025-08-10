@@ -94,51 +94,54 @@ func loadTemplates(dir string) (map[string]*template.Template, error) {
 }
 
 func withCustomErrors(next *http.ServeMux, app *app.App) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        defer func() {
-            if err := recover(); err != nil {
-                w.WriteHeader(http.StatusInternalServerError)
-                if tpl, ok := app.Templates["500.html"]; ok {
-                    tpl.ExecuteTemplate(w, "500.html", appTemplateData(r, app))
-                } else {
-                    http.Error(w, "Internal Server Error", 500)
-                }
-            }
-        }()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-store")
+				w.WriteHeader(http.StatusInternalServerError)
+				if tpl, ok := app.Templates["500.html"]; ok {
+					tpl.ExecuteTemplate(w, "500.html", appTemplateData(r, app))
+				} else {
+					http.Error(w, "Internal Server Error", 500)
+				}
+			}
+		}()
 
-        rw := &responseWriter{ResponseWriter: w, statusCode: 200}
-        next.ServeHTTP(rw, r)
+		rw := &responseWriter{ResponseWriter: w, statusCode: 200}
+		next.ServeHTTP(rw, r)
 
-        if rw.statusCode == http.StatusNotFound {
-            if tpl, ok := app.Templates["404.html"]; ok {
-                tpl.ExecuteTemplate(w, "404.html", appTemplateData(r, app))
-            } else {
-                http.NotFound(w, r)
-            }
-        }
-    })
+		if rw.statusCode == http.StatusNotFound {
+			if tpl, ok := app.Templates["404.html"]; ok {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-store")
+				tpl.ExecuteTemplate(w, "404.html", appTemplateData(r, app))
+			} else {
+				http.NotFound(w, r)
+			}
+		}
+	})
 }
 
 // Capture status codes
 type responseWriter struct {
-    http.ResponseWriter
-    statusCode int
+	http.ResponseWriter
+	statusCode int
 }
 
 func (rw *responseWriter) WriteHeader(code int) {
-    rw.statusCode = code
-    rw.ResponseWriter.WriteHeader(code)
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 // appTemplateData builds the data map like your other render calls
 func appTemplateData(r *http.Request, app *app.App) map[string]any {
-    uid, uname, logged := app.CurrentUser(r)
-    cats, _ := app.AllCategories()
-    return map[string]any{
-        "LoggedIn":   logged,
-        "UserID":     uid,
-        "Username":   uname,
-        "Categories": cats,
-    }
+	uid, uname, logged := app.CurrentUser(r)
+	cats, _ := app.AllCategories()
+	return map[string]any{
+		"LoggedIn":   logged,
+		"UserID":     uid,
+		"Username":   uname,
+		"Categories": cats,
+	}
 }
-

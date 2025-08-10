@@ -316,7 +316,7 @@ func (a *App) HandleShowPost(w http.ResponseWriter, r *http.Request) {
         JOIN users u ON u.id=p.user_id
         WHERE p.id=?`, id).Scan(&p.ID, &p.Title, &p.Body, &ts, &p.Username, &p.Likes, &p.Dislikes)
 	if err != nil {
-		http.NotFound(w, r)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 	p.CreatedAt = ts.Format("2006-01-02 15:04")
