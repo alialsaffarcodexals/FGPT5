@@ -10,6 +10,9 @@
     <input name="username" required>
     <label>Password</label>
     <input type="password" name="password" required>
+    {{if .Error}}
+    <p style="color:#f87171">{{.Error}}</p>
+    {{end}}
     <div style="margin-top:10px"><button class="btn primary" type="submit">Create account</button></div>
   </form>
 </div>

@@ -185,7 +185,12 @@ func (a *App) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		_, err = a.DB.Exec(`INSERT INTO users(email, username, password_hash) VALUES(?,?,?)`, email, username, string(hash))
 		if err != nil {
 			if isUniqueErr(err) {
-				http.Error(w, "email or username already taken", http.StatusConflict)
+				// http.Error(w, "email or username already taken", http.StatusConflict)
+				w.WriteHeader(http.StatusUnauthorized)
+				a.render(w, "register.html", map[string]any{
+					"View":  "register",
+					"Error": "email or username already taken",
+				})
 				return
 			}
 			http.Error(w, err.Error(), 500)
