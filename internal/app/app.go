@@ -216,12 +216,12 @@ func (a *App) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		var hash string
 		var username string
 		err := a.DB.QueryRow(`SELECT id, username, password_hash FROM users WHERE email=?`, email).Scan(&id, &username, &hash)
-		if err != nil {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
-			return
-		}
-		if bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)) != nil {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		if err != nil || bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)) != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			a.render(w, "login.html", map[string]any{
+				"View":  "login",
+				"Error": "invalid credentials",
+			})
 			return
 		}
 		sid := uuid.NewString()

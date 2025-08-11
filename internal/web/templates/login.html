@@ -3,6 +3,9 @@
 {{define "title"}}Login{{end}}
 {{define "content"}}
 <div class="card" style="max-width:480px; margin:0 auto;">
+  {{if .Error}}
+  <p style="color:#f87171">{{.Error}}</p>
+  {{end}}
   <form method="post" action="/login">
     <label>Email</label>
     <input type="email" name="email" required>
